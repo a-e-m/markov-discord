@@ -75,8 +75,11 @@ const markovOpts: MarkovConstructorOptions = {
 
 const markovGenerateOptions: MarkovGenerateOptions<MarkovDataCustom> = {
   filter: (result): boolean => {
+    const bannedSet = new Set(config.bannedWords);
+    const hasBannedWord = result.refs.some((ref) => bannedSet.has(ref.string));
+
     return (
-      result.score >= config.minScore && !result.refs.some((ref) => ref.string === result.string)
+      result.score >= config.minScore && !result.refs.some((ref) => ref.string === result.string) && !hasBannedWord
     );
   },
   maxTries: config.maxTries,
@@ -813,6 +816,12 @@ client.on('messageCreate', async (message) => {
         L.debug('Listening');
         const markov = await getMarkovByGuildId(message.channel.guildId);
         await markov.addData([messageToData(message)]);
+
+        if (!message.mentions.has(client.user!) && Math.random() < config.randomResponseChance) {
+          L.debug('Randomly responding to message');
+          const generatedResponse = await generateResponse(message);
+          await handleResponseMessage(generatedResponse, message);
+        }
       }
     }
   }
